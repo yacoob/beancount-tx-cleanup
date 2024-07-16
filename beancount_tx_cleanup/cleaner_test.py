@@ -26,8 +26,10 @@ class CleanerScenario:
       Tx(payee, tags, meta)
     """
 
-    input: str
+    input_payee: str
     payee: str
+    input_tags: set = field(default_factory=set, kw_only=True)
+    input_meta: dict = field(default_factory=dict, kw_only=True)
     tags: set = field(default_factory=set, kw_only=True)
     meta: dict = field(default_factory=dict, kw_only=True)
 
@@ -76,18 +78,31 @@ class TestCleanerFunctionality(BasicExtractorTest):
         CS('*Fredrikson*and Sons *Ltd.*', 'Fredrikson*and Sons Ltd.'),
         # straightforward extraction
         CS('XY90210 Happy Days', 'Happy Days', meta={'id': 'XY90210'}),
+        # as above, but the input transaction already has some metadata
+        CS('XY90210 Happy Days', 'Happy Days', input_meta={'length': '7 days'}, meta={'id': 'XY90210', 'length': '7 days'}),
+        # as above, but the input transaction already has exactly this field in metadata
+        CS('XY90210 Happy Days', 'Happy Days', input_meta={'id': 'Agent 007'}, meta={'id': 'Agent 007, XY90210'}),
         # extraction plus a lambda transformer
         CS('ID1234 *standing order', 'standing order', meta={'id': 'id1234'}),
         # extraction with a custom value plus a lambda replacement
         CS('GTS98765 regular saver', '56789 regular saver', meta={'id': 'v-98765'}),
         # extraction to a tag, a lookup table then a cleanup with a string replacement
         CS('AirSide Coffee 12.30 JPY@ 0.13  ', 'AirSide Coffee 12.30 JPY (0.13 each)', tags={'¥'}),
+        # as above, but the input transaction already has some tags
+        CS('AirSide Coffee 12.30 JPY@ 0.13  ', 'AirSide Coffee 12.30 JPY (0.13 each)', input_tags={'tasty'}, tags={'¥', 'tasty'}),
+        # as above, but the input transaction has an exactly identical tag
+        CS('AirSide Coffee 12.30 JPY@ 0.13  ', 'AirSide Coffee 12.30 JPY (0.13 each)', input_tags={'¥'}, tags={'¥'}),
     )  # fmt: skip
 
     @pytest.mark.parametrize('scenario', CLEANER_SCENARIOS)
     def test_cleaning(self, extractors, scenario):
         """Test different scenarios from CLEANER_SCENARIOS."""
-        tx = Tx(self.date, scenario.input)
+        tx = Tx(
+            self.date,
+            scenario.input_payee,
+            tags=scenario.input_tags,
+            meta=scenario.input_meta,
+        )
         clean_tx = Tx(
             self.date,
             scenario.payee,
@@ -120,11 +135,14 @@ class TestCleanerFunctionality(BasicExtractorTest):
         )
 
     def test_extractor_order_swap(self, extractors):
-        """The ordering of extractors is important; in this test we swap the order of applications of  __CLEANUP and TAG_DESTINATION. As a result, payee gets modified in a similar way, but no tag is extracted."""
+        """The ordering of extractors is important; in this test we swap the order of applications of  __CLEANUP and TAG_DESTINATION."""
         e = list(extractors.items())
         reordered_extractors: Extractors = dict([e[0], e[2], e[1]])
-        tx = Tx(self.date, self.CLEANER_SCENARIOS[4].input)
-        clean_tx = Tx(self.date, self.CLEANER_SCENARIOS[4].payee)
+        scenario = CS('AirSide Coffee 12.30 JPY@ 0.13  ', 'AirSide Coffee 12.30 JPY (0.13 each)', tags={'¥'})  # fmt: skip
+        tx = Tx(self.date, scenario.input_payee)
+        # As a result of the order swap no tag is extracted - by the time TAG_DESTINATION extractor
+        # is applied, the string it'd match on has already been cleaned by the __CLEANUP extractor.
+        clean_tx = Tx(self.date, scenario.payee, tags=set())
         assert clean_tx == TxnPayeeCleanup(tx, reordered_extractors)
 
 

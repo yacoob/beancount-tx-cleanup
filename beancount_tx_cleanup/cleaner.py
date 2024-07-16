@@ -91,6 +91,8 @@ def TxnPayeeCleanup(
                 # assign the value to tag set or metadata entry
                 if name is TAG_DESTINATION:
                     tags.add(value)
+                elif name in meta:
+                    meta[name] += f', {value}'
                 else:
                     meta[name] = value
     return txn._replace(payee=payee, tags=tags, meta=dict(sorted(meta.items())))
