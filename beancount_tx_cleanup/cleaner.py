@@ -2,8 +2,8 @@
 
 import datetime
 import re
+from collections.abc import Callable, Iterable
 from dataclasses import InitVar, field
-from typing import Callable, Iterable, Optional
 
 from pydantic.dataclasses import dataclass
 
@@ -55,8 +55,8 @@ Extractors = dict[str, tuple[Extractor, ...]]
 
 def TxnPayeeCleanup(
     txn,
-    extractors: Optional[Extractors] = None,
-    preserveOriginalIn: Optional[str] = None,
+    extractors: Extractors | None = None,
+    preserveOriginalIn: str | None = None,
 ):
     """Extract extra information from the payee field of the Transaction."""
     if extractors is None:

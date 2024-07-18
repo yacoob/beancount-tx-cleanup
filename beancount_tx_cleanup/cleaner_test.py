@@ -5,6 +5,8 @@ from dataclasses import field
 
 import pytest
 from beancount_aib.helpers import Tx
+from pydantic.dataclasses import dataclass
+
 from beancount_tx_cleanup.cleaner import (
     CLEANUP,
     TAG_DESTINATION,
@@ -13,7 +15,6 @@ from beancount_tx_cleanup.cleaner import (
     TxnPayeeCleanup,
     extractorsUsage,
 )
-from pydantic.dataclasses import dataclass
 
 
 @dataclass
