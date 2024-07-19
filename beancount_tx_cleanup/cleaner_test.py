@@ -4,7 +4,6 @@ import datetime
 from dataclasses import field
 
 import pytest
-from beancount_aib.helpers import Tx
 from pydantic.dataclasses import dataclass
 
 from beancount_tx_cleanup.cleaner import (
@@ -15,6 +14,7 @@ from beancount_tx_cleanup.cleaner import (
     TxnPayeeCleanup,
     extractorsUsage,
 )
+from beancount_tx_cleanup.helpers import Tx
 
 
 @dataclass
