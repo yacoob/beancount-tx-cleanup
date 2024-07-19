@@ -38,35 +38,30 @@ class CleanerScenario:
 CS = CleanerScenario
 
 
-class BasicExtractorTest:
-    """Cleaner functionality tests."""
-
-    date = datetime.date(2071, 3, 14)
-
-    @pytest.fixture()
-    def extractors(self):
-        """Provide a set of base extractors, which can be modified as needed in each test."""
-        return Extractors({
-            'id': (
-                # extract '^XY1234', add id=XY1234 to metadata
-                E(r'(?i)^(XY9\d+)'),
-                # extract '^ID1234', lowercase it, add id=id1234 to metadata
-                E(r'(?i)^(ID\d+)', transformer=lambda s: s.lower()),
-                # match '^GTS1234', add id=v-1234 to metadata, replace 'GTS1234' with '4321'
-                E(r'(?i)^GTS(\d+)', value=r'v-\1', replacement=lambda m: m.group(1)[::-1]),
-            ),
-            TAG_DESTINATION: (
-                # match '12.34 ABC@ 0.13 $'', extract abc, run it through the lookup table, no replacement
-                E(r' [\d.]+ ([A-Z]{3})@ [\d.]+ *$', translation={'jpy': '¥'}, replacement=r'\g<0>'),
-            ),
-            CLEANUP: (
-                # match '@ 0.13$', replace with ' (0.13 each)', no extraction
-                E(r'@ ([\d.]+)$', replacement=r' (\1 each)'),
-            ),
-        })  # fmt: skip
+@pytest.fixture
+def extractors():
+    """Provide a set of base extractors, which can be modified as needed in each test."""
+    return Extractors({
+        'id': (
+            # extract '^XY1234', add id=XY1234 to metadata
+            E(r'(?i)^(XY9\d+)'),
+            # extract '^ID1234', lowercase it, add id=id1234 to metadata
+            E(r'(?i)^(ID\d+)', transformer=lambda s: s.lower()),
+            # match '^GTS1234', add id=v-1234 to metadata, replace 'GTS1234' with '4321'
+            E(r'(?i)^GTS(\d+)', value=r'v-\1', replacement=lambda m: m.group(1)[::-1]),
+        ),
+        TAG_DESTINATION: (
+            # match '12.34 ABC@ 0.13 $'', extract abc, run it through the lookup table, no replacement
+            E(r' [\d.]+ ([A-Z]{3})@ [\d.]+ *$', translation={'jpy': '¥'}, replacement=r'\g<0>'),
+        ),
+        CLEANUP: (
+            # match '@ 0.13$', replace with ' (0.13 each)', no extraction
+            E(r'@ ([\d.]+)$', replacement=r' (\1 each)'),
+        ),
+    })  # fmt: skip
 
 
-class TestCleanerFunctionality(BasicExtractorTest):
+class TestCleanerFunctionality:
     """These tests exercise the basic functionality of TxnPayeeCleanup.
 
     To fully test the custom rules defined by the importer you should also have:
@@ -74,6 +69,7 @@ class TestCleanerFunctionality(BasicExtractorTest):
     - a test that checks if all extractors are tested by the regression tests
     """
 
+    date = datetime.date(2071, 3, 14)
     CLEANER_SCENARIOS = (
         # no extractor matches this payee
         CS('*Fredrikson*and Sons *Ltd.*', 'Fredrikson*and Sons Ltd.'),
@@ -147,7 +143,9 @@ class TestCleanerFunctionality(BasicExtractorTest):
         assert clean_tx == TxnPayeeCleanup(tx, reordered_extractors)
 
 
-class TestExtractorsUsageReporting(BasicExtractorTest):  # noqa: D101
+class TestExtractorsUsageReporting:
+    date = datetime.date(2071, 3, 14)
+
     def test_reporting(self, extractors):
         """TxnPayeeCleanup records date of the most recent tx each extractor matched."""
         _ = TxnPayeeCleanup(
