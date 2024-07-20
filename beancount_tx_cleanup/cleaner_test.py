@@ -4,8 +4,6 @@ import datetime
 from dataclasses import field
 
 import pytest
-from pydantic.dataclasses import dataclass
-
 from beancount_tx_cleanup.cleaner import (
     CLEANUP,
     TAG_DESTINATION,
@@ -15,6 +13,7 @@ from beancount_tx_cleanup.cleaner import (
     extractorsUsage,
 )
 from beancount_tx_cleanup.helpers import Tx
+from pydantic.dataclasses import dataclass
 
 
 @dataclass
@@ -144,6 +143,8 @@ class TestCleanerFunctionality:
 
 
 class TestExtractorsUsageReporting:
+    """Verifies extractorsUsage contents and format."""
+
     date = datetime.date(2071, 3, 14)
 
     def test_reporting(self, extractors):
