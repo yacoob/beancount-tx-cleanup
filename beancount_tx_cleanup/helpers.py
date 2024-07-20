@@ -86,5 +86,5 @@ def Tx(  # noqa: PLR0913
         narration.strip() if narration else '',
         tags.copy() if tags else EMPTY_TAGS,
         EMPTY_LINKS,
-        postings if postings else [],
+        postings or [],
     )

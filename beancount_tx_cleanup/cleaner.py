@@ -4,6 +4,7 @@ import datetime
 import re
 from collections.abc import Callable, Iterable
 from dataclasses import InitVar, field
+from itertools import starmap
 
 from pydantic.dataclasses import dataclass
 
@@ -72,8 +73,7 @@ def TxnPayeeCleanup(
         for extractor in list_of_extractors:
             if m := extractor.regexp.search(payee):
                 # record the most recent timestamp this extractor applied to:
-                if txn.date > extractor.last_used:
-                    extractor.last_used = txn.date
+                extractor.last_used = max(txn.date, extractor.last_used)
                 # stash the original payee for future record
                 if preserveOriginalIn and preserveOriginalIn not in meta:
                     meta[preserveOriginalIn] = original_payee
@@ -113,7 +113,7 @@ class ExtractorsUsage(list[ExtractorUsage]):
     """Structure for usage reporting of a whole extractor set."""
 
     def __init__(self, iterable: Iterable):  # noqa: D107
-        super().__init__(ExtractorUsage(*x) for x in iterable)
+        super().__init__(starmap(ExtractorUsage, iterable))
 
     def __str__(self) -> str:  # noqa: D105
         return '\n'.join(str(u) for u in self)
