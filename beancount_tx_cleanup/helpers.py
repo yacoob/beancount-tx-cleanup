@@ -1,24 +1,22 @@
 """Helper functions for creating beancount Directives.
 
-NOTE: beancount.core.data types are all NamedTuples, and they don't play well with static type checking :[
+NOTE: beancount.core.data types are all created dynamically in v2
+and they don't play well with static type checking :[
+
+beancount v3 fixes that:
+https://github.com/beancount/beancount/commit/7ee06ff7f922950cd36a067c2fad54370efeeaf5
 """
 
 import datetime
 from decimal import Decimal
 
-from beancount.core.data import (
-    EMPTY_SET,
-    Amount,
-    Balance,
-    Open,
-    Posting,
-    Transaction,
-)
+from beancount.core.amount import Amount
+from beancount.core.data import Balance, Flag, Open, Posting, Transaction
 
 DEFAULT_CURRENCY = 'EUR'
 DEFAULT_FLAG = '!'
-EMPTY_TAGS = EMPTY_SET
-EMPTY_LINKS = EMPTY_SET
+EMPTY_TAGS = set()
+EMPTY_LINKS = set()
 EMPTY_META = {}
 
 
@@ -26,9 +24,14 @@ EMPTY_META = {}
 # sensible defaults within the importer context.
 
 
-def Op(account: str, date: datetime.date, *, currency: str = DEFAULT_CURRENCY) -> Open:  # pyright: ignore reportInvalidTypeForm
+def Op(
+    account: str,
+    date: datetime.date,
+    *,
+    currency: str = DEFAULT_CURRENCY,
+) -> Open:
     """Create an Open directive."""
-    return Open(EMPTY_META, date, account, [currency], None)  # pyright: ignore reportCallIssue
+    return Open(EMPTY_META, date, account, [currency], None)
 
 
 def Bal(
@@ -40,7 +43,7 @@ def Bal(
     meta: dict[str, str] | None = None,
 ):
     """Create a Balance directive."""
-    return Balance(  # pyright: ignore reportCallIssue
+    return Balance(
         meta or EMPTY_META,
         date,
         account,
@@ -54,11 +57,13 @@ def Post(
     account: str,
     *,
     amount: str | None = None,
-    currency: str | None = DEFAULT_CURRENCY,
+    currency: str = DEFAULT_CURRENCY,
 ) -> Posting:
     """Create a Posting object."""
     return Posting(
         account,
+        # beancount v2 handles amount=None just fine, for those postings whose
+        # amount should be inferred. v3 lists this field as Optional[Amount].
         Amount(Decimal(amount), currency) if amount else None,  # pyright: ignore reportArgumentType
         None,
         None,
@@ -73,12 +78,12 @@ def Tx(  # noqa: PLR0913
     *,
     narration: str | None = None,
     postings: list[Posting] | None = None,
-    flag: str | None = DEFAULT_FLAG,
+    flag: Flag = DEFAULT_FLAG,
     tags: set[str] | None = None,
     meta: dict[str, str] | None = None,
 ):
     """Create a Transaction directive."""
-    return Transaction(  # pyright: ignore reportCallIssue
+    return Transaction(
         meta.copy() if meta else EMPTY_META,
         date,
         flag,

@@ -1,12 +1,12 @@
 """Tests for beancount helpers."""
 
-# pyright: reportCallIssue=false
 import datetime
 from decimal import Decimal
 from typing import ClassVar
 
-from beancount.core.data import Amount, Balance, Open, Posting, Transaction
-from beancount_tx_cleanup.helpers import (  # fmt: skip
+from beancount.core.amount import Amount
+from beancount.core.data import Balance, Open, Posting, Transaction
+from beancount_tx_cleanup.helpers import (
     DEFAULT_CURRENCY,
     DEFAULT_FLAG,
     EMPTY_LINKS,
@@ -28,9 +28,9 @@ class TestMakeHelpers:
     date = datetime.date(1985, 10, 26)
     account = 'Assets:Secret-stash'
     amount_str = '420'
-    amount = Amount(Decimal('420'), DEFAULT_CURRENCY)
+    amount = Amount(Decimal(420), DEFAULT_CURRENCY)
     currency = 'JPY'
-    amount2 = Amount(Decimal('420'), currency)
+    amount2 = Amount(Decimal(420), currency)
     payee = 'Damage Inc.'
     narration = 'May contract'
     tags = frozenset({'wet-work'})
@@ -53,8 +53,21 @@ class TestMakeHelpers:
         b = Balance({}, self.date, self.account, self.amount, None, None)
         assert x == b
         # test full argument set
-        y = Bal(self.account, self.amount_str, self.date, currency=self.currency, meta=self.meta)  # fmt: skip
-        b2 = Balance(self.meta, self.date, self.account, self.amount2, None, None)
+        y = Bal(
+            self.account,
+            self.amount_str,
+            self.date,
+            currency=self.currency,
+            meta=self.meta,
+        )
+        b2 = Balance(
+            self.meta,
+            self.date,
+            self.account,
+            self.amount2,
+            None,
+            None,
+        )
         assert y == b2
 
     def test_makePosting(self):  # noqa: D102
@@ -70,10 +83,37 @@ class TestMakeHelpers:
     def test_makeTransaction(self):  # noqa: D102
         # test minimal argument set
         x = Tx(self.date)
-        t = Transaction({}, self.date, DEFAULT_FLAG, '', '', EMPTY_TAGS, EMPTY_LINKS, [])  # fmt: skip
+        t = Transaction(
+            {},
+            self.date,
+            DEFAULT_FLAG,
+            '',
+            '',
+            EMPTY_TAGS,
+            EMPTY_LINKS,
+            [],
+        )
         assert x == t
+
         # test full argument set
         p = Post(self.account)
-        y = Tx(self.date, self.payee, narration=self.narration, postings=[p], flag='*', tags=set(), meta=self.meta)  # fmt: skip
-        t = Transaction(self.meta, self.date, '*', self.payee, self.narration, EMPTY_TAGS, EMPTY_LINKS, [p])  # fmt: skip
+        y = Tx(
+            self.date,
+            self.payee,
+            narration=self.narration,
+            postings=[p],
+            flag='*',
+            tags=set(),
+            meta=self.meta,
+        )
+        t = Transaction(
+            self.meta,
+            self.date,
+            '*',
+            self.payee,
+            self.narration,
+            EMPTY_TAGS,
+            EMPTY_LINKS,
+            [p],
+        )
         assert y == t
