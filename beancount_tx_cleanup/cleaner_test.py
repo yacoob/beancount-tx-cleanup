@@ -105,7 +105,11 @@ class TestCleanerFunctionality:
             tags=scenario.tags,
             meta=scenario.meta,
         )
-        assert clean_tx == TxnPayeeCleanup(tx, extractors, preserveOriginalIn=None)
+        assert clean_tx == TxnPayeeCleanup(
+            tx,
+            extractors,
+            preserveOriginalIn=None,
+        )
 
     def test_empty_extractors(self):
         """Empty extractor list should result in no changes other than star removal."""

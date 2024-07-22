@@ -1,9 +1,10 @@
 """Helper functions for creating beancount Directives.
 
-NOTE: beancount.core.data types are all created dynamically in v2
-and they don't play well with static type checking :[
+NOTE: beancount.core.data types are all created via a helper function in
+beancount v2 and as a result they don't play well with static type checking :[
+https://github.com/jmgilman/beancount-stubs helps a lot here.
 
-beancount v3 fixes that:
+beancount v3 does away with that helper function precisely for that reason :)
 https://github.com/beancount/beancount/commit/7ee06ff7f922950cd36a067c2fad54370efeeaf5
 """
 
@@ -18,10 +19,6 @@ DEFAULT_FLAG = '!'
 EMPTY_TAGS = set()
 EMPTY_LINKS = set()
 EMPTY_META = {}
-
-
-# All of those helper functions have short names and a set of
-# sensible defaults within the importer context.
 
 
 def Op(
@@ -62,7 +59,7 @@ def Post(
     """Create a Posting object."""
     return Posting(
         account,
-        # beancount v2 handles amount=None just fine, for those postings whose
+        # beancount v2 handles amount=None just fine, for postings whose
         # amount should be inferred. v3 lists this field as Optional[Amount].
         Amount(Decimal(amount), currency) if amount else None,  # pyright: ignore reportArgumentType
         None,

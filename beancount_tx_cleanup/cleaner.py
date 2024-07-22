@@ -29,7 +29,10 @@ class Extractor:
 
     match: InitVar[str]
     regexp: re.Pattern = field(init=False)
-    replacement: str | Callable[[re.Match], str] = field(kw_only=True, default='')
+    replacement: str | Callable[[re.Match], str] = field(
+        kw_only=True,
+        default='',
+    )
     value: str = field(kw_only=True, default=r'\1')
     transformer: Callable[[str], str] = field(kw_only=True, default=lambda s: s)
     translation: dict[str, str] = field(kw_only=True, default_factory=dict)
@@ -78,7 +81,11 @@ def TxnPayeeCleanup(
                 if preserveOriginalIn and preserveOriginalIn not in meta:
                     meta[preserveOriginalIn] = original_payee
                 # replace the match in payee
-                payee = re.sub(extractor.regexp, extractor.replacement, payee).strip()
+                payee = re.sub(
+                    extractor.regexp,
+                    extractor.replacement,
+                    payee,
+                ).strip()
                 # Was this a cleanup extractor?
                 if name is CLEANUP:
                     continue
