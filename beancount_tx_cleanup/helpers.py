@@ -16,9 +16,9 @@ from beancount.core.data import Balance, Flag, Open, Posting, Transaction
 
 DEFAULT_CURRENCY = 'EUR'
 DEFAULT_FLAG = '!'
-EMPTY_TAGS = set()
-EMPTY_LINKS = set()
-EMPTY_META = {}
+EMPTY_TAGS: set[str] = set()
+EMPTY_LINKS: set[str] = set()
+EMPTY_META: dict[str, str] = {}
 
 
 def Op(
@@ -38,7 +38,7 @@ def Bal(
     *,
     currency: str = DEFAULT_CURRENCY,
     meta: dict[str, str] | None = None,
-):
+) -> Balance:
     """Create a Balance directive."""
     return Balance(
         meta or EMPTY_META,
@@ -78,7 +78,7 @@ def Tx(  # noqa: PLR0913
     flag: Flag = DEFAULT_FLAG,
     tags: set[str] | None = None,
     meta: dict[str, str] | None = None,
-):
+) -> Transaction:
     """Create a Transaction directive."""
     return Transaction(
         meta.copy() if meta else EMPTY_META,
