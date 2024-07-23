@@ -5,12 +5,162 @@ import re
 from collections.abc import Callable, Iterable
 from dataclasses import InitVar, field
 from itertools import starmap
+from typing import Any, TypeAlias
 
+from beancount.core.data import Transaction
+from pydantic import (
+    BaseModel,
+    Field,
+    field_validator,
+)
 from pydantic.dataclasses import dataclass
 
+AGES_AGO = datetime.date(1900, 1, 1)
+
+ReplacementType: TypeAlias = str | Callable[[re.Match], str]
+
+
+class Action(BaseModel):
+    """Action describes an action that an Extractor can perform after it matches."""
+
+    value: ReplacementType = Field(frozen=True, default=r'\1')
+    transformer: Callable[[str], str] = lambda s: s
+    translation: dict[str, str] = Field(default_factory=dict)
+
+    def apply(self, m: re.Match) -> str:
+        """Work out the requested value out of matched data and transformations."""
+        v: str = m.expand(self.value).strip()
+        v = self.transformer(v)
+        return self.translation.get(v.lower(), v)
+
+    def execute(self, m: re.Match, txn: Transaction) -> Transaction:  # noqa: D102
+        raise NotImplementedError
+
+
+class Payee(Action):
+    """Set payee field to the result of Action."""
+
+    value: ReplacementType = ''
+
+    def execute(self, m: re.Match, txn: Transaction) -> Transaction:  # noqa: D102
+        if txn.payee:
+            p = m.re.sub(self.value, txn.payee).strip()
+            return txn._replace(payee=p)  # pyright: ignore[reportCallIssue]
+        return txn
+
+
+class Tag(Action):
+    """Add a tag from Action."""
+
+    def execute(self, m: re.Match, txn: Transaction) -> Transaction:  # noqa: D102
+        tags = txn.tags or set()
+        tags.add(self.apply(m))
+        return txn._replace(tags=tags)  # pyright: ignore[reportCallIssue]
+
+
+class Meta(Action):
+    """Add a metadata entry from Action."""
+
+    name: str
+
+    def execute(self, m: re.Match, txn: Transaction) -> Transaction:  # noqa: D102
+        meta = txn.meta or {}
+        v = self.apply(m)
+        if self.name in meta:
+            meta[self.name] += f', {v}'
+        else:
+            meta[self.name] = v
+
+        return txn._replace(meta=meta)  # pyright: ignore[reportCallIssue]
+
+
+P: TypeAlias = Payee
+T: TypeAlias = Tag
+M: TypeAlias = Meta
+# cleaner action - replace entire matched string with empty string in the payee field
+C = Payee(value='')
+
+
+class Extractor(BaseModel):
+    """Apply regexp to payee, apply Actions."""
+
+    regexp: re.Pattern = Field(frozen=True)
+    actions: list[Action] = Field(default_factory=list)
+    last_used: datetime.date = Field(default=AGES_AGO)
+
+    @field_validator('regexp', mode='before')
+    @classmethod
+    def compile_str_to_regexp(cls, v: Any) -> Any:  # noqa: D102
+        if isinstance(v, str):
+            return re.compile(v)
+        return v
+
+    @field_validator('actions', mode='before')
+    @classmethod
+    def ensure_action_list(cls, v: Any) -> Any:  # noqa: D102
+        if isinstance(v, Action):
+            return [v]
+        return v
+
+
+E = Extractor
+Extractors: TypeAlias = list[Extractor]
+
+
+def TxnPayeeCleanup(
+    txn: Transaction,
+    extractors: Extractors | None = None,
+    preserveOriginalIn: str | None = None,
+) -> Transaction:
+    """Extract extra information from the payee field of the Transaction."""
+    if extractors is None or not txn.payee:
+        return txn
+    old_payee = txn.payee
+    for extractor in extractors:
+        if m := extractor.regexp.search(txn.payee):
+            # record the most recent timestamp this extractor applied to:
+            extractor.last_used = max(txn.date, extractor.last_used)
+            for action in extractor.actions:
+                txn = action.execute(m, txn)
+    if preserveOriginalIn and txn.payee != old_payee:
+        txn.meta[preserveOriginalIn] = old_payee
+    return txn
+
+
+class ExtractorUsage(BaseModel):
+    """Structure for usage reporting of a single extractor."""
+
+    date: datetime.date
+    rulename: str
+
+    def __str__(self) -> str:  # noqa: D105
+        return f'{self.date.strftime("%Y-%m-%d")}: {self.rulename}'
+
+
+class ExtractorsUsage(list[ExtractorUsage]):
+    """Structure for usage reporting of a whole extractor set."""
+
+    def __init__(self, iterable: Iterable):  # noqa: D107
+        super().__init__(
+            ExtractorUsage(date=d, rulename=n) for (d, n) in iterable
+        )
+
+    def __str__(self) -> str:  # noqa: D105
+        return '\n'.join(str(u) for u in self)
+
+
+def extractorsUsage(extractors: Extractors) -> ExtractorsUsage:
+    """For every extractor in the set, reports what was the date of the most recent transaction processed by it."""
+    return ExtractorsUsage(
+        sorted(
+            [(e.last_used, str(e.regexp)) for e in extractors],
+        ),
+    )
+
+
+# # # # # # OLD EXTRACTORS CODE
 TAG_DESTINATION = '__TAG'
 CLEANUP = '__CLEANUP'
-AGES_AGO = datetime.date(1900, 1, 1)
 
 
 # Each Extractor describes a transformation performed on the transaction's payee.
@@ -24,7 +174,7 @@ AGES_AGO = datetime.date(1900, 1, 1)
 #     translation: optional lookup table to look up value.lower() (default={})
 # ```
 @dataclass
-class Extractor:
+class OldExtractor:
     """Single extractor definition."""
 
     match: InitVar[str]
@@ -53,13 +203,13 @@ class Extractor:
 # is important; some REs use anchors that won't match anymore after a preceeding extractor
 # modifies the payee string.
 #
-E = Extractor
-Extractors = dict[str, tuple[Extractor, ...]]
+OldE = OldExtractor
+OldExtractors = dict[str, tuple[OldExtractor, ...]]
 
 
-def TxnPayeeCleanup(
+def OldTxnPayeeCleanup(
     txn,
-    extractors: Extractors | None = None,
+    extractors: OldExtractors | None = None,
     preserveOriginalIn: str | None = None,
 ):
     """Extract extra information from the payee field of the Transaction."""
@@ -103,37 +253,3 @@ def TxnPayeeCleanup(
                 else:
                     meta[name] = value
     return txn._replace(payee=payee, tags=tags, meta=dict(sorted(meta.items())))
-
-
-@dataclass
-class ExtractorUsage:
-    """Structure for usage reporting of a single extractor."""
-
-    date: datetime.date
-    rulename: str
-
-    def __str__(self) -> str:  # noqa: D105
-        return f'{self.date.strftime("%Y-%m-%d")}: {self.rulename}'
-
-
-class ExtractorsUsage(list[ExtractorUsage]):
-    """Structure for usage reporting of a whole extractor set."""
-
-    def __init__(self, iterable: Iterable):  # noqa: D107
-        super().__init__(starmap(ExtractorUsage, iterable))
-
-    def __str__(self) -> str:  # noqa: D105
-        return '\n'.join(str(u) for u in self)
-
-
-def extractorsUsage(extractors: Extractors) -> ExtractorsUsage:
-    """For every extractor in the set, reports what was the date of the most recent transaction processed by it."""
-    return ExtractorsUsage(
-        sorted(
-            [
-                (e.last_used, f'{name} - {e.regexp}')
-                for name, es in extractors.items()
-                for e in es
-            ],
-        ),
-    )

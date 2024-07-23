@@ -5,10 +5,12 @@ from dataclasses import field
 
 import pytest
 from beancount_tx_cleanup.cleaner import (
-    CLEANUP,
-    TAG_DESTINATION,
+    C,
     E,
     Extractors,
+    M,
+    P,
+    T,
     TxnPayeeCleanup,
     extractorsUsage,
 )
@@ -40,24 +42,18 @@ CS = CleanerScenario
 @pytest.fixture
 def extractors():
     """Provide a set of base extractors, which can be modified as needed in each test."""
-    return Extractors({
-        'id': (
-            # extract '^XY1234', add id=XY1234 to metadata
-            E(r'(?i)^(XY9\d+)'),
-            # extract '^ID1234', lowercase it, add id=id1234 to metadata
-            E(r'(?i)^(ID\d+)', transformer=lambda s: s.lower()),
-            # match '^GTS1234', add id=v-1234 to metadata, replace 'GTS1234' with '4321'
-            E(r'(?i)^GTS(\d+)', value=r'v-\1', replacement=lambda m: m.group(1)[::-1]),
-        ),
-        TAG_DESTINATION: (
-            # match '12.34 ABC@ 0.13 $'', extract abc, run it through the lookup table, no replacement
-            E(r' [\d.]+ ([A-Z]{3})@ [\d.]+ *$', translation={'jpy': '¥'}, replacement=r'\g<0>'),
-        ),
-        CLEANUP: (
-            # match '@ 0.13$', replace with ' (0.13 each)', no extraction
-            E(r'@ ([\d.]+)$', replacement=r' (\1 each)'),
-        ),
-    })  # fmt: skip
+    return Extractors([
+        # extract '^XY1234', add id=XY1234 to metadata
+        E(regexp=r'(?i)^(XY9\d+)',actions=[M(name='id'), C]),
+        # extract '^ID1234', lowercase it, add id=id1234 to metadata
+        E(regexp=r'(?i)^(ID\d+)', actions=[M(name='id', transformer=lambda s: s.lower()), C]),
+        # match '^GTS1234', add id=v-1234 to metadata, replace 'GTS1234' with '4321'
+        E(regexp=r'(?i)^GTS(\d+)', actions=[M(name='id', value=r'v-\1'), P(value=lambda m: m.group(1)[::-1])]),
+        # match '12.34 ABC@ 0.13 $'', extract abc, run it through the lookup table, no replacement
+        E(regexp=r' [\d.]+ ([A-Z]{3})@ [\d.]+ *$', actions=[T(translation={'jpy': '¥'}), P(value=r'\g<0>')]),
+        # match '@ 0.13$', replace with ' (0.13 each)', no extraction
+        E(regexp=r'@ ([\d.]+)$', actions=P(value=r' (\1 each)')),
+    ])  # fmt: skip
 
 
 class TestCleanerFunctionality:
@@ -71,7 +67,7 @@ class TestCleanerFunctionality:
     date = datetime.date(2071, 3, 14)
     CLEANER_SCENARIOS = (
         # no extractor matches this payee
-        CS('*Fredrikson*and Sons *Ltd.*', 'Fredrikson*and Sons Ltd.'),
+        CS('Fredrikson*and Sons Ltd.', 'Fredrikson*and Sons Ltd.'),
         # straightforward extraction
         CS('XY90210 Happy Days', 'Happy Days', meta={'id': 'XY90210'}),
         # as above, but the input transaction already has some metadata
@@ -79,7 +75,7 @@ class TestCleanerFunctionality:
         # as above, but the input transaction already has exactly this field in metadata
         CS('XY90210 Happy Days', 'Happy Days', input_meta={'id': 'Agent 007'}, meta={'id': 'Agent 007, XY90210'}),
         # extraction plus a lambda transformer
-        CS('ID1234 *standing order', 'standing order', meta={'id': 'id1234'}),
+        CS('ID1234 standing order', 'standing order', meta={'id': 'id1234'}),
         # extraction with a custom value plus a lambda replacement
         CS('GTS98765 regular saver', '56789 regular saver', meta={'id': 'v-98765'}),
         # extraction to a tag, a lookup table then a cleanup with a string replacement
@@ -108,20 +104,16 @@ class TestCleanerFunctionality:
         assert clean_tx == TxnPayeeCleanup(
             tx,
             extractors,
-            preserveOriginalIn=None,
         )
 
     def test_empty_extractors(self):
-        """Empty extractor list should result in no changes other than star removal."""
+        """Empty extractor list should result in no changes."""
         tx = Tx(self.date, 'shai hulud extract')
         assert tx == TxnPayeeCleanup(tx, None)
-        tx = Tx(self.date, '*shai hulud extract')
-        clean_tx = Tx(self.date, 'shai hulud extract')
-        assert clean_tx == TxnPayeeCleanup(tx, {})
 
     def test_save_original_payee(self, extractors):
-        """TxnPayeeCleanup will optionally preserve the tx's original payee."""
-        p = 'ID19283 *standing order'
+        """TxnPayeeCleanup should preserve the tx's original payee."""
+        p = 'ID19283 standing order'
         tx = Tx(self.date, p)
         clean_tx = Tx(
             self.date,
@@ -136,14 +128,14 @@ class TestCleanerFunctionality:
 
     def test_extractor_order_swap(self, extractors):
         """The ordering of extractors is important; in this test we swap the order of applications of  __CLEANUP and TAG_DESTINATION."""
-        e = list(extractors.items())
-        reordered_extractors: Extractors = dict([e[0], e[2], e[1]])
+        e: Extractors = extractors.copy()
+        e[-2], e[-1] = e[-1], e[-2]
         scenario = CS('AirSide Coffee 12.30 JPY@ 0.13  ', 'AirSide Coffee 12.30 JPY (0.13 each)', tags={'¥'})  # fmt: skip
         tx = Tx(self.date, scenario.input_payee)
         # As a result of the order swap no tag is extracted - by the time TAG_DESTINATION extractor
         # is applied, the string it'd match on has already been cleaned by the __CLEANUP extractor.
         clean_tx = Tx(self.date, scenario.payee, tags=set())
-        assert clean_tx == TxnPayeeCleanup(tx, reordered_extractors)
+        assert clean_tx == TxnPayeeCleanup(tx, e)
 
 
 class TestExtractorsUsageReporting:
@@ -157,9 +149,10 @@ class TestExtractorsUsageReporting:
             Tx(self.date, 'ID29381 Grooveshark subscription'),
             extractors,
         )
-        expected_usage = r"""1900-01-01: __CLEANUP - re.compile('@ ([\\d.]+)$')
-1900-01-01: __TAG - re.compile(' [\\d.]+ ([A-Z]{3})@ [\\d.]+ *$')
-1900-01-01: id - re.compile('(?i)^(XY9\\d+)', re.IGNORECASE)
-1900-01-01: id - re.compile('(?i)^GTS(\\d+)', re.IGNORECASE)
-2071-03-14: id - re.compile('(?i)^(ID\\d+)', re.IGNORECASE)"""
+        print(extractorsUsage(extractors))
+        expected_usage = r"""1900-01-01: re.compile(' [\\d.]+ ([A-Z]{3})@ [\\d.]+ *$')
+1900-01-01: re.compile('(?i)^(XY9\\d+)', re.IGNORECASE)
+1900-01-01: re.compile('(?i)^GTS(\\d+)', re.IGNORECASE)
+1900-01-01: re.compile('@ ([\\d.]+)$')
+2071-03-14: re.compile('(?i)^(ID\\d+)', re.IGNORECASE)"""
         assert expected_usage == str(extractorsUsage(extractors))
