@@ -10,15 +10,20 @@ https://github.com/beancount/beancount/commit/7ee06ff7f922950cd36a067c2fad54370e
 
 import datetime
 from decimal import Decimal
+from typing import TypeAlias
 
 from beancount.core.amount import Amount
 from beancount.core.data import Balance, Flag, Open, Posting, Transaction
 
+Tags: TypeAlias = set[str]
+Links: TypeAlias = set[str]
+Meta: TypeAlias = dict[str, str]
+
 DEFAULT_CURRENCY = 'EUR'
 DEFAULT_FLAG = '!'
-EMPTY_TAGS: set[str] = set()
-EMPTY_LINKS: set[str] = set()
-EMPTY_META: dict[str, str] = {}
+EMPTY_TAGS: Tags = set()
+EMPTY_LINKS: Links = set()
+EMPTY_META: Meta = {}
 
 
 def Op(
@@ -37,7 +42,7 @@ def Bal(
     date: datetime.date,
     *,
     currency: str = DEFAULT_CURRENCY,
-    meta: dict[str, str] | None = None,
+    meta: Meta | None = None,
 ) -> Balance:
     """Create a Balance directive."""
     return Balance(
@@ -76,8 +81,8 @@ def Tx(  # noqa: PLR0913
     narration: str | None = None,
     postings: list[Posting] | None = None,
     flag: Flag = DEFAULT_FLAG,
-    tags: set[str] | None = None,
-    meta: dict[str, str] | None = None,
+    tags: Tags | None = None,
+    meta: Meta | None = None,
 ) -> Transaction:
     """Create a Transaction directive."""
     return Transaction(
