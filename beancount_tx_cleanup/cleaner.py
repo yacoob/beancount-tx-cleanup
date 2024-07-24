@@ -3,28 +3,21 @@
 import datetime
 import re
 from collections.abc import Callable, Iterable
-from dataclasses import InitVar, field
 from typing import Any, TypeAlias
 
 from beancount.core.data import Transaction
-from pydantic import (
-    BaseModel,
-    Field,
-    field_validator,
-)
-from pydantic.dataclasses import dataclass
+from pydantic import BaseModel, field_validator
 
 AGES_AGO = datetime.date(1900, 1, 1)
-
-ReplacementType: TypeAlias = str | Callable[[re.Match], str]
+Replacement: TypeAlias = str | Callable[[re.Match], str]
 
 
 class Action(BaseModel):
     """Action describes an action that an Extractor can perform after it matches."""
 
-    v: ReplacementType = Field(frozen=True, default=r'\1')
+    v: Replacement = r'\1'
     transformer: Callable[[str], str] = lambda s: s
-    translation: dict[str, str] = Field(default_factory=dict)
+    translation: dict[str, str] = {}
 
     def apply(self, m: re.Match) -> str:
         """Work out the requested value out of matched data and transformations."""
@@ -39,7 +32,7 @@ class Action(BaseModel):
 class Payee(Action):
     """Set payee field to the result of Action."""
 
-    v: ReplacementType = ''
+    v: Replacement = ''
 
     def execute(self, m: re.Match, txn: Transaction) -> Transaction:  # noqa: D102
         if txn.payee:
@@ -83,9 +76,9 @@ C = Payee(v='')
 class Extractor(BaseModel):
     """Apply regexp to payee, apply Actions."""
 
-    r: re.Pattern = Field(frozen=True)
-    actions: list[Action] = Field(default_factory=list)
-    last_used: datetime.date = Field(default=AGES_AGO)
+    r: re.Pattern
+    actions: list[Action] = []
+    last_used: datetime.date = AGES_AGO
 
     @field_validator('r', mode='before')
     @classmethod
@@ -115,6 +108,7 @@ def TxnPayeeCleanup(
     if extractors is None or not txn.payee:
         return txn
     old_payee = txn.payee
+    old_meta = txn.meta.copy()
     for extractor in extractors:
         if m := extractor.r.search(txn.payee):
             # record the most recent timestamp this extractor applied to:
@@ -123,7 +117,8 @@ def TxnPayeeCleanup(
                 txn = action.execute(m, txn)
     if preserveOriginalIn and txn.payee != old_payee:
         txn.meta[preserveOriginalIn] = old_payee
-        txn.meta = dict(sorted(txn.meta.items()))
+    if txn.meta != old_meta:
+        txn = txn._replace(meta=dict(sorted(txn.meta.items())))  # pyright: ignore[reportCallIssue]
     return txn
 
 
