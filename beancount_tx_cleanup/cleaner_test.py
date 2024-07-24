@@ -44,15 +44,15 @@ def extractors():
     """Provide a set of base extractors, which can be modified as needed in each test."""
     return Extractors([
         # extract '^XY1234', add id=XY1234 to metadata
-        E(regexp=r'(?i)^(XY9\d+)',actions=[M(name='id'), C]),
+        E(regexp=r'(?i)^(XY9\d+)',actions=[M(name='id'), C]),                                                    # pyright: ignore[reportArgumentType]
         # extract '^ID1234', lowercase it, add id=id1234 to metadata
-        E(regexp=r'(?i)^(ID\d+)', actions=[M(name='id', transformer=lambda s: s.lower()), C]),
+        E(regexp=r'(?i)^(ID\d+)', actions=[M(name='id', transformer=lambda s: s.lower()), C]),                   # pyright: ignore[reportArgumentType]
         # match '^GTS1234', add id=v-1234 to metadata, replace 'GTS1234' with '4321'
-        E(regexp=r'(?i)^GTS(\d+)', actions=[M(name='id', value=r'v-\1'), P(value=lambda m: m.group(1)[::-1])]),
+        E(regexp=r'(?i)^GTS(\d+)', actions=[M(name='id', value=r'v-\1'), P(value=lambda m: m.group(1)[::-1])]),  # pyright: ignore[reportArgumentType]
         # match '12.34 ABC@ 0.13 $'', extract abc, run it through the lookup table, no replacement
-        E(regexp=r' [\d.]+ ([A-Z]{3})@ [\d.]+ *$', actions=[T(translation={'jpy': '¥'}), P(value=r'\g<0>')]),
+        E(regexp=r' [\d.]+ ([A-Z]{3})@ [\d.]+ *$', actions=[T(translation={'jpy': '¥'}), P(value=r'\g<0>')]),    # pyright: ignore[reportArgumentType]
         # match '@ 0.13$', replace with ' (0.13 each)', no extraction
-        E(regexp=r'@ ([\d.]+)$', actions=P(value=r' (\1 each)')),
+        E(regexp=r'@ ([\d.]+)$', actions=P(value=r' (\1 each)')),                                                # pyright: ignore[reportArgumentType]
     ])  # fmt: skip
 
 
@@ -150,9 +150,9 @@ class TestExtractorsUsageReporting:
             extractors,
         )
         print(extractorsUsage(extractors))
-        expected_usage = r"""1900-01-01: re.compile(' [\\d.]+ ([A-Z]{3})@ [\\d.]+ *$')
-1900-01-01: re.compile('(?i)^(XY9\\d+)', re.IGNORECASE)
-1900-01-01: re.compile('(?i)^GTS(\\d+)', re.IGNORECASE)
-1900-01-01: re.compile('@ ([\\d.]+)$')
-2071-03-14: re.compile('(?i)^(ID\\d+)', re.IGNORECASE)"""
+        expected_usage = r"""1900-01-01: r' [\d.]+ ([A-Z]{3})@ [\d.]+ *$'
+1900-01-01: r'(?i)^(XY9\d+)'
+1900-01-01: r'(?i)^GTS(\d+)'
+1900-01-01: r'@ ([\d.]+)$'
+2071-03-14: r'(?i)^(ID\d+)'"""
         assert expected_usage == str(extractorsUsage(extractors))

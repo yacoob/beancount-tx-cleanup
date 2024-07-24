@@ -4,7 +4,6 @@ import datetime
 import re
 from collections.abc import Callable, Iterable
 from dataclasses import InitVar, field
-from itertools import starmap
 from typing import Any, TypeAlias
 
 from beancount.core.data import Transaction
@@ -153,7 +152,7 @@ def extractorsUsage(extractors: Extractors) -> ExtractorsUsage:
     """For every extractor in the set, reports what was the date of the most recent transaction processed by it."""
     return ExtractorsUsage(
         sorted(
-            [(e.last_used, str(e.regexp)) for e in extractors],
+            [(e.last_used, f"r'{e.regexp.pattern}'") for e in extractors],
         ),
     )
 
