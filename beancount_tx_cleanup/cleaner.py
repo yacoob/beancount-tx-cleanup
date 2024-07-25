@@ -3,10 +3,11 @@
 import datetime
 import re
 from collections.abc import Callable, Iterable
-from typing import Any, TypeAlias
+from typing import Self, TypeAlias
 
 from beancount.core.data import Transaction
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel
+from typing_extensions import override
 
 AGES_AGO = datetime.date(1900, 1, 1)
 Replacement: TypeAlias = str | Callable[[re.Match], str]
@@ -24,6 +25,10 @@ class Action(BaseModel):
         v: str = m.expand(self.v).strip()
         v = self.transformer(v)
         return self.translation.get(v.lower(), v)
+
+    @classmethod
+    def new(cls, v: Replacement, **kwargs) -> Self:  # noqa: D102
+        return cls(v=v, **kwargs)
 
     def execute(self, m: re.Match, txn: Transaction) -> Transaction:  # noqa: D102
         raise NotImplementedError
@@ -62,13 +67,17 @@ class Meta(Action):
             meta[self.n] += f', {v}'
         else:
             meta[self.n] = v
-
         return txn._replace(meta=meta)  # pyright: ignore[reportCallIssue]
 
+    @classmethod
+    @override
+    def new(cls, n: str, **kwargs) -> Self:  # pyright: ignore[reportIncompatibleMethodOverride]
+        return cls(n=n, **kwargs)
 
-P: TypeAlias = Payee
-T: TypeAlias = Tag
-M: TypeAlias = Meta
+
+P = Payee.new
+T = Tag.new
+M = Meta.new
 # cleaner action - replace entire matched string with empty string in the payee field
 C = Payee(v='')
 
@@ -80,22 +89,16 @@ class Extractor(BaseModel):
     actions: list[Action] = []
     last_used: datetime.date = AGES_AGO
 
-    @field_validator('r', mode='before')
     @classmethod
-    def compile_str_to_regexp(cls, v: Any) -> Any:  # noqa: D102
-        if isinstance(v, str):
-            return re.compile(v)
-        return v
-
-    @field_validator('actions', mode='before')
-    @classmethod
-    def ensure_action_list(cls, v: Any) -> Any:  # noqa: D102
-        if isinstance(v, Action):
-            return [v]
-        return v
+    def new(cls, r: str | re.Pattern, actions: Action | list[Action]) -> Self:  # noqa: D102
+        if isinstance(r, str):
+            r = re.compile(r)
+        if isinstance(actions, Action):
+            actions = [actions]
+        return cls(r=r, actions=actions)
 
 
-E = Extractor
+E = Extractor.new
 Extractors: TypeAlias = list[Extractor]
 
 

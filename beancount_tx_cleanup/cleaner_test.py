@@ -44,15 +44,15 @@ def extractors():
     """Provide a set of base extractors, which can be modified as needed in each test."""
     return Extractors([
         # extract '^XY1234', add id=XY1234 to metadata
-        E(r=r'(?i)^(XY9\d+)',actions=[M(n='id'), C]),                                                    # pyright: ignore[reportArgumentType]
+        E(r'(?i)^(XY9\d+)',actions=[M('id'), C]),
         # extract '^ID1234', lowercase it, add id=id1234 to metadata
-        E(r=r'(?i)^(ID\d+)', actions=[M(n='id', transformer=lambda s: s.lower()), C]),                   # pyright: ignore[reportArgumentType]
+        E(r'(?i)^(ID\d+)', actions=[M('id', transformer=lambda s: s.lower()), C]),
         # match '^GTS1234', add id=v-1234 to metadata, replace 'GTS1234' with '4321'
-        E(r=r'(?i)^GTS(\d+)', actions=[M(n='id', v=r'v-\1'), P(v=lambda m: m.group(1)[::-1])]),  # pyright: ignore[reportArgumentType]
+        E(r'(?i)^GTS(\d+)', actions=[M('id', v=r'v-\1'), P(v=lambda m: m.group(1)[::-1])]),
         # match '12.34 ABC@ 0.13 $'', extract abc, run it through the lookup table, no replacement
-        E(r=r' [\d.]+ ([A-Z]{3})@ [\d.]+ *$', actions=[T(translation={'jpy': '¥'}), P(v=r'\g<0>')]),    # pyright: ignore[reportArgumentType]
+        E(r' [\d.]+ ([A-Z]{3})@ [\d.]+ *$', actions=[T(r'\1', translation={'jpy': '¥'}), P(r'\g<0>')]),
         # match '@ 0.13$', replace with ' (0.13 each)', no extraction
-        E(r=r'@ ([\d.]+)$', actions=P(v=r' (\1 each)')),                                                # pyright: ignore[reportArgumentType]
+        E(r'@ ([\d.]+)$', actions=P(r' (\1 each)')),
     ])  # fmt: skip
 
 
