@@ -1,9 +1,10 @@
 """Tests for the transaction cleaner."""
 
 import datetime
-from dataclasses import field
+from typing import Callable
 
 import pytest
+from beancount.core.data import Transaction
 from beancount_tx_cleanup.cleaner import (
     C,
     E,
@@ -15,28 +16,11 @@ from beancount_tx_cleanup.cleaner import (
     extractorsUsage,
 )
 from beancount_tx_cleanup.helpers import Tx
-from pydantic.dataclasses import dataclass
 
 
-@dataclass
-class CleanerScenario:
-    """A dataclass describing a test scenario for cleaner.
-
-    TxnPayeeCleanup should turn
-      Tx(payee=input)
-    into
-      Tx(payee, tags, meta)
-    """
-
-    input_payee: str
-    payee: str
-    input_tags: set = field(default_factory=set, kw_only=True)
-    input_meta: dict = field(default_factory=dict, kw_only=True)
-    tags: set = field(default_factory=set, kw_only=True)
-    meta: dict = field(default_factory=dict, kw_only=True)
-
-
-CS = CleanerScenario
+def TestTxMaker(date: datetime.date) -> Callable[..., Transaction]:
+    """Return a factory of test transactions with a fixed date."""
+    return lambda p, **kwargs: Tx(date=date, payee=p, **kwargs)
 
 
 @pytest.fixture
@@ -49,11 +33,15 @@ def extractors():
         E(r'(?i)^(ID\d+)', actions=[M('id', transformer=lambda s: s.lower()), C]),
         # match '^GTS1234', add id=v-1234 to metadata, replace 'GTS1234' with '4321'
         E(r'(?i)^GTS(\d+)', actions=[M('id', v=r'v-\1'), P(v=lambda m: m.group(1)[::-1])]),
-        # match '12.34 ABC@ 0.13 $'', extract abc, run it through the lookup table, no replacement
+        # match '12.34 ABC@ 0.13 ', extract abc, run it through the lookup table, no replacement
         E(r' [\d.]+ ([A-Z]{3})@ [\d.]+ *$', actions=[T(r'\1', translation={'jpy': '¥'}), P(r'\g<0>')]),
         # match '@ 0.13$', replace with ' (0.13 each)', no extraction
         E(r'@ ([\d.]+)$', actions=P(r' (\1 each)')),
     ])  # fmt: skip
+
+
+TESTDATE = datetime.date(2071, 3, 14)
+TTx = TestTxMaker(TESTDATE)
 
 
 class TestCleanerFunctionality:
@@ -64,59 +52,42 @@ class TestCleanerFunctionality:
     - a test that checks if all extractors are tested by the regression tests
     """
 
-    date = datetime.date(2071, 3, 14)
-    CLEANER_SCENARIOS = (
+    CLEANER_SCENARIOS: tuple[tuple[Transaction, Transaction], ...] = (
         # no extractor matches this payee
-        CS('Fredrikson*and Sons Ltd.', 'Fredrikson*and Sons Ltd.'),
+        (TTx('Fredrikson*and Sons Ltd.'), TTx('Fredrikson*and Sons Ltd.')),
         # straightforward extraction
-        CS('XY90210 Happy Days', 'Happy Days', meta={'id': 'XY90210'}),
+        (TTx('XY90210 Happy Days'), TTx('Happy Days', meta={'id': 'XY90210'})),
         # as above, but the input transaction already has some metadata
-        CS('XY90210 Happy Days', 'Happy Days', input_meta={'length': '7 days'}, meta={'id': 'XY90210', 'length': '7 days'}),
+        (TTx('XY90210 Happy Days', meta={'length': '7 days'}), TTx('Happy Days', meta={'id': 'XY90210', 'length': '7 days'})),
         # as above, but the input transaction already has exactly this field in metadata
-        CS('XY90210 Happy Days', 'Happy Days', input_meta={'id': 'Agent 007'}, meta={'id': 'Agent 007, XY90210'}),
+        (TTx('XY90210 Happy Days', meta={'id': 'Agent 007'}), TTx('Happy Days', meta={'id': 'Agent 007, XY90210'})),
         # extraction plus a lambda transformer
-        CS('ID1234 standing order', 'standing order', meta={'id': 'id1234'}),
+        (TTx('ID1234 standing order'), TTx('standing order', meta={'id': 'id1234'})),
         # extraction with a custom value plus a lambda replacement
-        CS('GTS98765 regular saver', '56789 regular saver', meta={'id': 'v-98765'}),
+        (TTx('GTS98765 regular saver'), TTx('56789 regular saver', meta={'id': 'v-98765'})),
         # extraction to a tag, a lookup table then a cleanup with a string replacement
-        CS('AirSide Coffee 12.30 JPY@ 0.13  ', 'AirSide Coffee 12.30 JPY (0.13 each)', tags={'¥'}),
+        (TTx('AirSide Coffee 12.30 JPY@ 0.13  '), TTx('AirSide Coffee 12.30 JPY (0.13 each)', tags={'¥'})),
         # as above, but the input transaction already has some tags
-        CS('AirSide Coffee 12.30 JPY@ 0.13  ', 'AirSide Coffee 12.30 JPY (0.13 each)', input_tags={'tasty'}, tags={'¥', 'tasty'}),
+        (TTx('AirSide Coffee 12.30 JPY@ 0.13  ', tags={'tasty'}), TTx('AirSide Coffee 12.30 JPY (0.13 each)', tags={'¥', 'tasty'})),
         # as above, but the input transaction has an exactly identical tag
-        CS('AirSide Coffee 12.30 JPY@ 0.13  ', 'AirSide Coffee 12.30 JPY (0.13 each)', input_tags={'¥'}, tags={'¥'}),
+        (TTx('AirSide Coffee 12.30 JPY@ 0.13  ', tags={'¥'}), TTx('AirSide Coffee 12.30 JPY (0.13 each)', tags={'¥'})),
     )  # fmt: skip
 
-    @pytest.mark.parametrize('scenario', CLEANER_SCENARIOS)
-    def test_cleaning(self, extractors, scenario):
+    @pytest.mark.parametrize(('in_tx', 'out_tx'), CLEANER_SCENARIOS)
+    def test_cleaning(self, extractors: Extractors, in_tx, out_tx):
         """Test different scenarios from CLEANER_SCENARIOS."""
-        tx = Tx(
-            self.date,
-            scenario.input_payee,
-            tags=scenario.input_tags,
-            meta=scenario.input_meta,
-        )
-        clean_tx = Tx(
-            self.date,
-            scenario.payee,
-            tags=scenario.tags,
-            meta=scenario.meta,
-        )
-        assert clean_tx == TxnPayeeCleanup(
-            tx,
-            extractors,
-        )
+        assert out_tx == TxnPayeeCleanup(in_tx, extractors)
 
     def test_empty_extractors(self):
         """Empty extractor list should result in no changes."""
-        tx = Tx(self.date, 'shai hulud extract')
-        assert tx == TxnPayeeCleanup(tx, None)
+        tx = TTx('shai hulud vendor')
+        assert tx == TxnPayeeCleanup(tx)
 
     def test_save_original_payee(self, extractors):
         """TxnPayeeCleanup should preserve the tx's original payee."""
         p = 'ID19283 standing order'
-        tx = Tx(self.date, p)
-        clean_tx = Tx(
-            self.date,
+        tx = TTx(p)
+        clean_tx = TTx(
             'standing order',
             meta={'id': 'id19283', 'previously': p},
         )
@@ -130,11 +101,10 @@ class TestCleanerFunctionality:
         """The ordering of extractors is important; in this test we swap the order of applications of  __CLEANUP and TAG_DESTINATION."""
         e: Extractors = extractors.copy()
         e[-2], e[-1] = e[-1], e[-2]
-        scenario = CS('AirSide Coffee 12.30 JPY@ 0.13  ', 'AirSide Coffee 12.30 JPY (0.13 each)', tags={'¥'})  # fmt: skip
-        tx = Tx(self.date, scenario.input_payee)
+        tx = TTx('AirSide Coffee 12.30 JPY@ 0.13  ')
         # As a result of the order swap no tag is extracted - by the time TAG_DESTINATION extractor
         # is applied, the string it'd match on has already been cleaned by the __CLEANUP extractor.
-        clean_tx = Tx(self.date, scenario.payee, tags=set())
+        clean_tx = TTx('AirSide Coffee 12.30 JPY (0.13 each)', tags=set())
         assert clean_tx == TxnPayeeCleanup(tx, e)
 
 
