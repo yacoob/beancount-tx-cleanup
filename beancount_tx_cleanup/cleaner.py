@@ -99,7 +99,16 @@ class Extractor(BaseModel):
 
 
 E = Extractor.new
-Extractors: TypeAlias = list[Extractor]
+
+
+class Extractors(list[Extractor]):
+    """A list of Extractor that can handle += operator."""
+
+    def __iadd__(self, e: Extractor | Iterable[Extractor], /) -> Self:
+        """Handle += operator."""
+        if isinstance(e, Extractor):
+            e = [e]
+        return super().__iadd__(e)
 
 
 def TxnPayeeCleanup(
