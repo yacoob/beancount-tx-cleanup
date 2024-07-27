@@ -21,18 +21,3 @@ packages = ["beancount_tx_cleanup"]
 [tool.rye]
 managed = true
 dev-dependencies = []
-
-## extra tooling
-#
-
-[tool.coverage.report]
-show_missing = true
-
-[tool.coverage.run]
-branch = true
-source = ['beancount_tx_cleanup']
-omit = ['**/*_test.py']
-
-[tool.pytest.ini_options]
-console_output_style = 'classic'
-addopts = '--cov --no-cov-on-fail'
