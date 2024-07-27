@@ -26,18 +26,35 @@ def TestTxMaker(date: datetime.date) -> Callable[..., Transaction]:
 @pytest.fixture
 def extractors():
     """Provide a set of base extractors, which can be modified as needed in each test."""
-    return Extractors([
-        # extract '^XY1234', add id=XY1234 to metadata
-        E(r'(?i)^(XY9\d+)',actions=[M('id'), C]),
-        # extract '^ID1234', lowercase it, add id=id1234 to metadata
-        E(r'(?i)^(ID\d+)', actions=[M('id', transformer=lambda s: s.lower()), C]),
-        # match '^GTS1234', add id=v-1234 to metadata, replace 'GTS1234' with '4321'
-        E(r'(?i)^GTS(\d+)', actions=[M('id', v=r'v-\1'), P(v=lambda m: m.group(1)[::-1])]),
-        # match '12.34 ABC@ 0.13 ', extract abc, run it through the lookup table, no replacement
-        E(r' [\d.]+ ([A-Z]{3})@ [\d.]+ *$', actions=[T(r'\1', translation={'jpy': '¥'}), P(r'\g<0>')]),
-        # match '@ 0.13$', replace with ' (0.13 each)', no extraction
-        E(r'@ ([\d.]+)$', actions=P(r' (\1 each)')),
-    ])  # fmt: skip
+    return Extractors(
+        [
+            E(
+                "extract '^XY1234', add id=XY1234 to metadata",
+                r'(?i)^(XY9\d+)',
+                actions=[M('id'), C],
+            ),
+            E(
+                "extract '^ID1234', lowercase it, add id=id1234 to metadata",
+                r'(?i)^(ID\d+)',
+                actions=[M('id', transformer=lambda s: s.lower()), C],
+            ),
+            E(
+                "match '^GTS1234', add id=v-1234 to metadata, replace 'GTS1234' with '4321'",
+                r'(?i)^GTS(\d+)',
+                actions=[M('id', v=r'v-\1'), P(v=lambda m: m.group(1)[::-1])],
+            ),
+            E(
+                "match '12.34 ABC@ 0.13 ', extract abc, run it through the lookup table, no replacement",
+                r' [\d.]+ ([A-Z]{3})@ [\d.]+ *$',
+                actions=[T(r'\1', translation={'jpy': '¥'}), P(r'\g<0>')],
+            ),
+            E(
+                "match '@ 0.13$', replace with ' (0.13 each)', no extraction",
+                r'@ ([\d.]+)$',
+                actions=P(r' (\1 each)'),
+            ),
+        ],
+    )
 
 
 TESTDATE = datetime.date(2071, 3, 14)
@@ -120,9 +137,9 @@ class TestExtractorsUsageReporting:
             extractors,
         )
         print(extractorsUsage(extractors))
-        expected_usage = r"""1900-01-01: r' [\d.]+ ([A-Z]{3})@ [\d.]+ *$'
-1900-01-01: r'(?i)^(XY9\d+)'
-1900-01-01: r'(?i)^GTS(\d+)'
-1900-01-01: r'@ ([\d.]+)$'
-2071-03-14: r'(?i)^(ID\d+)'"""
+        expected_usage = r"""1900-01-01: extract '^XY1234', add id=XY1234 to metadata
+1900-01-01: match '12.34 ABC@ 0.13 ', extract abc, run it through the lookup table, no replacement
+1900-01-01: match '@ 0.13$', replace with ' (0.13 each)', no extraction
+1900-01-01: match '^GTS1234', add id=v-1234 to metadata, replace 'GTS1234' with '4321'
+2071-03-14: extract '^ID1234', lowercase it, add id=id1234 to metadata"""
         assert expected_usage == str(extractorsUsage(extractors))

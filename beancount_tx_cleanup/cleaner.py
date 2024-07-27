@@ -88,14 +88,20 @@ class Extractor(BaseModel):
     r: re.Pattern
     actions: list[Action] = []
     last_used: datetime.date = AGES_AGO
+    description: str = ''
 
     @classmethod
-    def new(cls, r: str | re.Pattern, actions: Action | list[Action]) -> Self:  # noqa: D102
+    def new(  # noqa: D102
+        cls,
+        desc: str,
+        r: str | re.Pattern,
+        actions: Action | list[Action],
+    ) -> Self:
         if isinstance(r, str):
             r = re.compile(r)
         if isinstance(actions, Action):
             actions = [actions]
-        return cls(r=r, actions=actions)
+        return cls(r=r, actions=actions, description=desc)
 
 
 E = Extractor.new
@@ -160,6 +166,6 @@ def extractorsUsage(extractors: Extractors) -> ExtractorsUsage:
     """For every extractor in the set, reports what was the date of the most recent transaction processed by it."""
     return ExtractorsUsage(
         sorted(
-            [(e.last_used, f"r'{e.r.pattern}'") for e in extractors],
+            [(e.last_used, f'{e.description}') for e in extractors],
         ),
     )
