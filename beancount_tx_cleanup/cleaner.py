@@ -2,6 +2,7 @@
 
 import datetime
 import re
+from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterable
 from typing import Self, TypeAlias
 
@@ -13,7 +14,7 @@ AGES_AGO = datetime.date(1900, 1, 1)
 Replacement: TypeAlias = str | Callable[[re.Match], str]
 
 
-class Action(BaseModel):
+class Action(BaseModel, ABC):
     """Action describes an action that an Extractor can perform after it matches."""
 
     v: Replacement = r'\1'
@@ -27,11 +28,14 @@ class Action(BaseModel):
         return self.translation.get(v.lower(), v)
 
     @classmethod
-    def new(cls, v: Replacement, **kwargs) -> Self:  # noqa: D102
+    def new(cls, v: Replacement, **kwargs) -> Self:
+        """Positional constructor for Action."""
         return cls(v=v, **kwargs)
 
-    def execute(self, m: re.Match, txn: Transaction) -> Transaction:  # noqa: D102
-        raise NotImplementedError
+    @abstractmethod
+    def execute(self, m: re.Match, txn: Transaction) -> Transaction:
+        """Apply this action to txn, using match data m."""
+        pass
 
 
 class Payee(Action):
@@ -40,10 +44,8 @@ class Payee(Action):
     v: Replacement = ''
 
     def execute(self, m: re.Match, txn: Transaction) -> Transaction:  # noqa: D102
-        if txn.payee:
-            p = m.re.sub(self.v, txn.payee).strip()
-            return txn._replace(payee=p)  # pyright: ignore[reportCallIssue]
-        return txn
+        p = m.re.sub(self.v, txn.payee).strip()
+        return txn._replace(payee=p)
 
 
 class Tag(Action):
@@ -52,7 +54,7 @@ class Tag(Action):
     def execute(self, m: re.Match, txn: Transaction) -> Transaction:  # noqa: D102
         tags = txn.tags or set()
         tags.add(self.apply(m))
-        return txn._replace(tags=tags)  # pyright: ignore[reportCallIssue]
+        return txn._replace(tags=tags)
 
 
 class Meta(Action):
@@ -67,7 +69,7 @@ class Meta(Action):
             meta[self.n] += f', {v}'
         else:
             meta[self.n] = v
-        return txn._replace(meta=meta)  # pyright: ignore[reportCallIssue]
+        return txn._replace(meta=meta)
 
     @classmethod
     @override

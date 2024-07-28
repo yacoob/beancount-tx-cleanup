@@ -5,3 +5,5 @@ omit = */*_test.py
 
 [report]
 show_missing = true
+exclude_also =
+  @(abc\.)?abstractmethod

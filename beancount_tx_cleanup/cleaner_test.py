@@ -1,13 +1,16 @@
 """Tests for the transaction cleaner."""
 
 import datetime
+import re
 from typing import Callable
 
 import pytest
 from beancount.core.data import Transaction
 from beancount_tx_cleanup.cleaner import (
+    Action,
     C,
     E,
+    Extractor,
     Extractors,
     M,
     P,
@@ -25,6 +28,47 @@ def make_test_transaction_factory(
     return lambda p, **kwargs: Tx(date=date, payee=p, **kwargs)
 
 
+TESTDATE = datetime.date(2071, 3, 14)
+TTx = make_test_transaction_factory(TESTDATE)
+
+
+def testNoGenericActions():
+    """Verifies that you can't make a plain Action object."""
+    with pytest.raises(TypeError):
+        _ = Action.new('whatever')
+
+
+def test_extractor_new():
+    """Test Extractor creation."""
+    # Test with string regex and single Action
+    extractor = E('digit eraser', r'^\d+', C)
+    assert isinstance(extractor.r, re.Pattern)
+    assert isinstance(extractor.actions, list)
+    assert extractor.description == 'digit eraser'
+
+    # Test with compiled regex and list of Actions
+    extractor = E('digit extractor', re.compile(r'\d+'), [M('digits'), C])
+    assert isinstance(extractor.r, re.Pattern)
+    assert isinstance(extractor.actions, list)
+    assert extractor.description == 'digit extractor'
+
+
+def test_extractors():
+    """Test Extractors creation and addition."""
+    exs = Extractors(
+        [
+            E('digit eraser', r'^\d+', C),
+        ],
+    )
+    # test += with a single extractor
+    exs += E('digit extractor', r'\d+', [M('digits'), C])
+    assert len(exs) == 2  # noqa: PLR2004
+    # test += with an iterable
+    exs += exs
+    assert len(exs) == 4  # noqa: PLR2004
+    assert all(isinstance(x, Extractor) for x in exs)
+
+
 @pytest.fixture
 def extractors():
     """Provide a set of base extractors, which can be modified as needed in each test."""
@@ -32,7 +76,7 @@ def extractors():
         [
             E(
                 "extract '^XY1234', add id=XY1234 to metadata",
-                r'(?i)^(XY9\d+)',
+                re.compile(r'(?i)^(XY9\d+)'),
                 actions=[M('id'), C],
             ),
             E(
@@ -59,10 +103,6 @@ def extractors():
     )
 
 
-TESTDATE = datetime.date(2071, 3, 14)
-TTx = make_test_transaction_factory(TESTDATE)
-
-
 class TestCleanerFunctionality:
     """These tests exercise the basic functionality of TxnPayeeCleanup.
 
@@ -72,6 +112,8 @@ class TestCleanerFunctionality:
     """
 
     CLEANER_SCENARIOS: tuple[tuple[Transaction, Transaction], ...] = (
+        # empty payee
+        (TTx(''), TTx('')),
         # no extractor matches this payee
         (TTx('Fredrikson*and Sons Ltd.'), TTx('Fredrikson*and Sons Ltd.')),
         # straightforward extraction
