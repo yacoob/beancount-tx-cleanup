@@ -18,7 +18,9 @@ from beancount_tx_cleanup.cleaner import (
 from beancount_tx_cleanup.helpers import Tx
 
 
-def TestTxMaker(date: datetime.date) -> Callable[..., Transaction]:
+def make_test_transaction_factory(
+    date: datetime.date,
+) -> Callable[..., Transaction]:
     """Return a factory of test transactions with a fixed date."""
     return lambda p, **kwargs: Tx(date=date, payee=p, **kwargs)
 
@@ -58,7 +60,7 @@ def extractors():
 
 
 TESTDATE = datetime.date(2071, 3, 14)
-TTx = TestTxMaker(TESTDATE)
+TTx = make_test_transaction_factory(TESTDATE)
 
 
 class TestCleanerFunctionality:
