@@ -17,7 +17,7 @@ from beancount.core.data import Balance, Flag, Open, Posting, Transaction
 
 Tags: TypeAlias = set[str]
 Links: TypeAlias = set[str]
-Meta: TypeAlias = dict[str, str]
+Meta: TypeAlias = dict[str, str | int]
 
 DEFAULT_CURRENCY = 'EUR'
 DEFAULT_FLAG = '!'

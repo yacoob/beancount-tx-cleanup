@@ -12,6 +12,7 @@ from beancount_tx_cleanup.helpers import (
     EMPTY_LINKS,
     EMPTY_TAGS,
     Bal,
+    Meta,
     Op,
     Post,
     Tx,
@@ -35,7 +36,7 @@ class TestMakeHelpers:
     narration = 'May contract'
     tags = frozenset({'wet-work'})
     links = frozenset({'http://damage.inc'})
-    meta: ClassVar[dict[str, str]] = {'number_of_bullets': 'seven'}
+    meta: ClassVar[Meta] = {'number_of_bullets': 'seven'}
 
     def test_makeOpen(self):  # noqa: D102
         # test minimal argument set
