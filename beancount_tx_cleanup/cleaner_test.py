@@ -13,8 +13,11 @@ from beancount_tx_cleanup.cleaner import (
     Extractor,
     Extractors,
     M,
+    Meta,
     P,
+    Payee,
     T,
+    Tag,
     TxnPayeeCleanup,
     extractorsUsage,
 )
@@ -32,41 +35,62 @@ TESTDATE = datetime.date(2071, 3, 14)
 TTx = make_test_transaction_factory(TESTDATE)
 
 
-def testNoGenericActions():
-    """Verifies that you can't make a plain Action object."""
-    with pytest.raises(TypeError):
-        _ = Action.new('whatever')
+class TestActionTypes:
+    """Tests for Action and all child classes."""
+
+    def testNoGenericActions(self):
+        """Verifies that you can't make a plain Action object."""
+        with pytest.raises(TypeError):
+            _ = Action.new('whatever')
+
+    def testPayeeAction(self):
+        """Test Payee action."""
+        assert P('word') == Payee.new('word')
+
+    def testTagAction(self):
+        """Test Tag action."""
+        assert T('tag') == Tag.new('tag')
+
+    def testMetaAction(self):
+        """Test Meta action."""
+        assert M('name') == Meta.new('name')
+
+    def testCleanerAction(self):
+        """Test Cleaner action."""
+        assert Payee(v='') == C
 
 
-def test_extractor_new():
-    """Test Extractor creation."""
-    # Test with string regex and single Action
-    extractor = E('digit eraser', r'^\d+', C)
-    assert isinstance(extractor.r, re.Pattern)
-    assert isinstance(extractor.actions, list)
-    assert extractor.description == 'digit eraser'
+class TestExtractorAndExtractors:
+    """Extractor(s) related tests."""
 
-    # Test with compiled regex and list of Actions
-    extractor = E('digit extractor', re.compile(r'\d+'), [M('digits'), C])
-    assert isinstance(extractor.r, re.Pattern)
-    assert isinstance(extractor.actions, list)
-    assert extractor.description == 'digit extractor'
+    def test_extractor_new(self):
+        """Test Extractor creation."""
+        # Test with string regex and single Action
+        extractor = E('digit eraser', r'^\d+', C)
+        assert isinstance(extractor.r, re.Pattern)
+        assert isinstance(extractor.actions, list)
+        assert extractor.description == 'digit eraser'
 
+        # Test with compiled regex and list of Actions
+        extractor = E('digit extractor', re.compile(r'\d+'), [M('digits'), C])
+        assert isinstance(extractor.r, re.Pattern)
+        assert isinstance(extractor.actions, list)
+        assert extractor.description == 'digit extractor'
 
-def test_extractors():
-    """Test Extractors creation and addition."""
-    exs = Extractors(
-        [
-            E('digit eraser', r'^\d+', C),
-        ],
-    )
-    # test += with a single extractor
-    exs += E('digit extractor', r'\d+', [M('digits'), C])
-    assert len(exs) == 2  # noqa: PLR2004
-    # test += with an iterable
-    exs += exs
-    assert len(exs) == 4  # noqa: PLR2004
-    assert all(isinstance(x, Extractor) for x in exs)
+    def test_extractors(self):
+        """Test Extractors creation and addition."""
+        exs = Extractors(
+            [
+                E('digit eraser', r'^\d+', C),
+            ],
+        )
+        # test += with a single extractor
+        exs += E('digit extractor', r'\d+', [M('digits'), C])
+        assert len(exs) == 2  # noqa: PLR2004
+        # test += with an iterable
+        exs += exs
+        assert len(exs) == 4  # noqa: PLR2004
+        assert all(isinstance(x, Extractor) for x in exs)
 
 
 @pytest.fixture
