@@ -30,6 +30,10 @@ chardet==5.2.0
     # via beancount
 charset-normalizer==3.3.2
     # via requests
+coverage==7.6.0
+    # via pytest-cov
+exceptiongroup==1.2.2
+    # via pytest
 google-api-core==2.19.1
     # via google-api-python-client
 google-api-python-client==2.139.0
@@ -80,6 +84,8 @@ pyparsing==3.1.2
     # via httplib2
 pytest==8.3.2
     # via beancount
+    # via pytest-cov
+pytest-cov==5.0.0
 python-dateutil==2.9.0.post0
     # via beancount
 python-magic==0.4.27
@@ -94,6 +100,9 @@ six==1.16.0
     # via python-dateutil
 soupsieve==2.5
     # via beautifulsoup4
+tomli==2.0.1
+    # via coverage
+    # via pytest
 typing-extensions==4.12.2
     # via pydantic
     # via pydantic-core

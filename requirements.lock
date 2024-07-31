@@ -29,6 +29,8 @@ chardet==5.2.0
     # via beancount
 charset-normalizer==3.3.2
     # via requests
+exceptiongroup==1.2.2
+    # via pytest
 google-api-core==2.19.1
     # via google-api-python-client
 google-api-python-client==2.139.0
@@ -91,6 +93,8 @@ six==1.16.0
     # via python-dateutil
 soupsieve==2.5
     # via beautifulsoup4
+tomli==2.0.1
+    # via pytest
 typing-extensions==4.12.2
     # via pydantic
     # via pydantic-core
