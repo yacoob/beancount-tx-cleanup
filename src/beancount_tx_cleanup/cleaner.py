@@ -1,4 +1,4 @@
-"""An helper function that cleans up the payee field and adds discovered information to entry's metadata."""
+"""A function that cleans up the payee field and adds discovered information to entry's metadata."""
 
 import datetime
 import re

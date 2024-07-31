@@ -1,9 +1,10 @@
 [run]
 branch = true
-include = beancount_tx_cleanup/*.py
-omit = */*_test.py
+include = src/**/*.py
+omit = tests/**/*.py
 
 [report]
 show_missing = true
 exclude_also =
+  class .*\bProtocol\):
   @(abc\.)?abstractmethod
