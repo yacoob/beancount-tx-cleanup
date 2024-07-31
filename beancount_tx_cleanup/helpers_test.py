@@ -6,6 +6,7 @@ from typing import ClassVar
 
 from beancount.core.amount import Amount
 from beancount.core.data import Balance, Open, Posting, Transaction
+
 from beancount_tx_cleanup.helpers import (
     DEFAULT_CURRENCY,
     DEFAULT_FLAG,

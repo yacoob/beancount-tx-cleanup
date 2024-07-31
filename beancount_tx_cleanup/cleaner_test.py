@@ -2,10 +2,11 @@
 
 import datetime
 import re
-from typing import Callable
+from collections.abc import Callable
 
 import pytest
 from beancount.core.data import Transaction
+
 from beancount_tx_cleanup.cleaner import (
     Action,
     C,

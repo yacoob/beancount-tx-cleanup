@@ -52,7 +52,7 @@ class Tag(Action):
     """Add a tag from Action."""
 
     def execute(self, m: re.Match, txn: Transaction) -> Transaction:  # noqa: D102
-        tags = txn.tags or set()
+        tags = set(txn.tags or [])
         tags.add(self.apply(m))
         return txn._replace(tags=tags)
 
