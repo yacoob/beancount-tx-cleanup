@@ -1,0 +1,80 @@
+on:
+  push:
+    paths-ignore:
+      - "**.md"
+  pull_request:
+    paths-ignore:
+      - "**.md"
+  workflow_dispatch:
+
+name: CI/CD
+
+jobs:
+  lint:
+    name: Lint, check format and typing
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        pyVersion: ["3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: eifinger/setup-rye@v4
+        id: setup-rye
+        with:
+          enable-cache: true
+          cache-prefix: ${{ matrix.pyVersion }}
+      - name: Pin python-version ${{ matrix.pyVersion }}
+        if: steps.setup-rye.outputs.cache-hit != 'true'
+        run: rye pin ${{ matrix.pyVersion }}
+      - name: Install dependencies
+        if: steps.setup-rye.outputs.cache-hit != 'true'
+        run: rye sync
+      - name: Run rye lint
+        run: rye lint $(git ls-files "*.py")
+      - name: Run rye fmt
+        run: rye fmt $(git ls-files "*.py") -- --diff --check
+      - name: Run basedpyright
+        run: rye run basedpyright $(git ls-files "*.py")
+  test:
+    name: Run tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        pyVersion: ["3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: eifinger/setup-rye@v4
+        id: setup-rye
+        with:
+          enable-cache: true
+          cache-prefix: ${{ matrix.pyVersion }}
+      - name: Pin python-version ${{ matrix.pyVersion }}
+        if: steps.setup-rye.outputs.cache-hit != 'true'
+        run: rye pin ${{ matrix.pyVersion }}
+      - name: Install dependencies
+        if: steps.setup-rye.outputs.cache-hit != 'true'
+        run: rye sync
+      - name: Run pytest w/ coverage
+        run: rye run pytest -vvv --cov
+  push:
+    name: Push to PyPi
+    runs-on: ubuntu-latest
+    if: startsWith(github.event.ref, 'refs/tags/v')
+    needs: [lint, test]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: eifinger/setup-rye@v4
+        id: setup-rye
+        with:
+          enable-cache: true
+          cache-prefix: ${{ matrix.pyVersion }}
+      - name: Pin python-version ${{ matrix.pyVersion }}
+        if: steps.setup-rye.outputs.cache-hit != 'true'
+        run: rye pin ${{ matrix.pyVersion }}
+      - name: Install dependencies
+        if: steps.setup-rye.outputs.cache-hit != 'true'
+        run: rye sync
+      - name: Build
+        run: rye build
+      - name: Upload
+        run: rye publish
