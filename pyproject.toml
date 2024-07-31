@@ -5,7 +5,7 @@ description = "Beancount transaction cleaner"
 authors = [{ name = "Jakub Turski", email = "yacoob@ftml.net" }]
 dependencies = ["beancount ~=2.3", "pydantic ~=2.8"]
 readme = "README.md"
-requires-python = ">= 3.11"
+requires-python = "~=3.10"
 classifiers = ["Private :: Do Not Upload"]
 
 [build-system]

@@ -4,7 +4,7 @@ import datetime
 import re
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterable
-from typing import Self, TypeAlias
+from typing import TypeAlias
 
 from beancount.core.data import Transaction
 from pydantic import BaseModel
@@ -28,7 +28,7 @@ class Action(BaseModel, ABC):
         return self.translation.get(v.lower(), v)
 
     @classmethod
-    def new(cls, v: Replacement, **kwargs) -> Self:
+    def new(cls, v: Replacement, **kwargs) -> 'Action':
         """Positional constructor for Action."""
         return cls(v=v, **kwargs)
 
@@ -73,7 +73,7 @@ class Meta(Action):
 
     @classmethod
     @override
-    def new(cls, n: str, **kwargs) -> Self:  # pyright: ignore[reportIncompatibleMethodOverride]
+    def new(cls, n: str, **kwargs) -> 'Meta':  # pyright: ignore[reportIncompatibleMethodOverride]
         return cls(n=n, **kwargs)
 
 
@@ -98,7 +98,7 @@ class Extractor(BaseModel):
         desc: str,
         r: str | re.Pattern,
         actions: Action | list[Action],
-    ) -> Self:
+    ) -> 'Extractor':
         if isinstance(r, str):
             r = re.compile(r)
         if isinstance(actions, Action):
@@ -112,7 +112,7 @@ E = Extractor.new
 class Extractors(list[Extractor]):
     """A list of Extractor that can handle += operator."""
 
-    def __iadd__(self, e: Extractor | Iterable[Extractor], /) -> Self:
+    def __iadd__(self, e: Extractor | Iterable[Extractor], /) -> 'Extractors':
         """Handle += operator."""
         if isinstance(e, Extractor):
             e = [e]
