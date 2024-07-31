@@ -3,7 +3,7 @@ name = "beancount-tx-cleanup"
 version = "0.1.0"
 description = "Beancount transaction cleaner"
 authors = [{ name = "Jakub Turski", email = "yacoob@ftml.net" }]
-dependencies = ["beancount <3, >=2", "pydantic>=2.8.2"]
+dependencies = ["beancount ~=2.3", "pydantic ~=2.8"]
 readme = "README.md"
 requires-python = ">= 3.11"
 classifiers = ["Private :: Do Not Upload"]
@@ -20,4 +20,4 @@ packages = ["beancount_tx_cleanup"]
 
 [tool.rye]
 managed = true
-dev-dependencies = []
+dev-dependencies = ["pytest~=8.2"]
