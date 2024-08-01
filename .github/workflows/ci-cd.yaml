@@ -24,7 +24,6 @@ jobs:
           enable-cache: true
           cache-prefix: ${{ matrix.pyVersion }}
       - name: Pin python-version ${{ matrix.pyVersion }}
-        if: steps.setup-rye.outputs.cache-hit != 'true'
         run: rye pin ${{ matrix.pyVersion }}
       - name: Install dependencies
         if: steps.setup-rye.outputs.cache-hit != 'true'
@@ -49,7 +48,6 @@ jobs:
           enable-cache: true
           cache-prefix: ${{ matrix.pyVersion }}
       - name: Pin python-version ${{ matrix.pyVersion }}
-        if: steps.setup-rye.outputs.cache-hit != 'true'
         run: rye pin ${{ matrix.pyVersion }}
       - name: Install dependencies
         if: steps.setup-rye.outputs.cache-hit != 'true'
