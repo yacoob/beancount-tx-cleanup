@@ -44,7 +44,7 @@ class Payee(Action):
     v: Replacement = ''
 
     def execute(self, m: re.Match, txn: Transaction) -> Transaction:  # noqa: D102
-        p = m.re.sub(self.v, txn.payee).strip()
+        p: str = m.re.sub(self.v, txn.payee).strip()
         return txn._replace(payee=p)
 
 
