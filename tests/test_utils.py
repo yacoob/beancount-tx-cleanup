@@ -14,5 +14,5 @@ def test_TTx_factory():
     assert tx == Tx(
         date=TESTDATE,
         payee='gelato',
-        tags={'tasty'},
+        tags=frozenset(['tasty']),
     )

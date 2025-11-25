@@ -13,16 +13,21 @@ from decimal import Decimal
 from typing import TypeAlias
 
 from beancount.core.amount import Amount
-from beancount.core.data import Balance, Flag, Open, Posting, Transaction
+from beancount.core.data import (
+    EMPTY_SET,
+    Balance,
+    Flag,
+    Meta,
+    Open,
+    Posting,
+    Transaction,
+)
 
-Tags: TypeAlias = set[str]
-Links: TypeAlias = set[str]
-Meta: TypeAlias = dict[str, str | int]
+Tags: TypeAlias = frozenset[str]
+Links: TypeAlias = frozenset[str]
 
 DEFAULT_CURRENCY = 'EUR'
 DEFAULT_FLAG = '!'
-EMPTY_TAGS: Tags = set()
-EMPTY_LINKS: Links = set()
 EMPTY_META: Meta = {}
 
 
@@ -91,7 +96,7 @@ def Tx(  # noqa: PLR0913
         flag,
         payee.strip() if payee else '',
         narration.strip() if narration else '',
-        tags.copy() if tags else EMPTY_TAGS,
-        EMPTY_LINKS,
+        tags.copy() if tags else EMPTY_SET,
+        EMPTY_SET,
         postings or [],
     )

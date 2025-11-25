@@ -5,13 +5,11 @@ from decimal import Decimal
 from typing import ClassVar
 
 from beancount.core.amount import Amount
-from beancount.core.data import Balance, Open, Posting, Transaction
+from beancount.core.data import EMPTY_SET, Balance, Open, Posting, Transaction
 
 from beancount_tx_cleanup.helpers import (
     DEFAULT_CURRENCY,
     DEFAULT_FLAG,
-    EMPTY_LINKS,
-    EMPTY_TAGS,
     Bal,
     Meta,
     Op,
@@ -91,8 +89,8 @@ class TestMakeHelpers:
             DEFAULT_FLAG,
             '',
             '',
-            EMPTY_TAGS,
-            EMPTY_LINKS,
+            EMPTY_SET,
+            EMPTY_SET,
             [],
         )
         assert x == t
@@ -105,7 +103,7 @@ class TestMakeHelpers:
             narration=self.narration,
             postings=[p],
             flag='*',
-            tags=set(),
+            tags=EMPTY_SET,
             meta=self.meta,
         )
         t = Transaction(
@@ -114,8 +112,8 @@ class TestMakeHelpers:
             '*',
             self.payee,
             self.narration,
-            EMPTY_TAGS,
-            EMPTY_LINKS,
+            EMPTY_SET,
+            EMPTY_SET,
             [p],
         )
         assert y == t
